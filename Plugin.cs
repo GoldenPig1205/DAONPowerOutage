@@ -10,6 +10,7 @@ using Exiled.API.Features.Core;
 using Mirror;
 using PlayerRoles;
 using MapEditorReborn.API.Features.Objects;
+using Exiled.API.Features.Doors;
 
 namespace DAONPowerOutage
 {
@@ -22,6 +23,7 @@ namespace DAONPowerOutage
 
         public bool ButtonPressed = false;
         public bool LastOneMode = false;
+        public bool BlockBlackout = true;
 
         ReferenceHub dj;
 
@@ -33,12 +35,16 @@ namespace DAONPowerOutage
 
             Exiled.Events.Handlers.Server.WaitingForPlayers += OnWaitingForPlayers;
             Exiled.Events.Handlers.Server.RoundStarted += OnRoundStarted;
+            Exiled.Events.Handlers.Server.RespawningTeam += OnRespawningTeam;
+
+            Exiled.Events.Handlers.Cassie.SendingCassieMessage += OnSendingCassieMessage;
 
             Exiled.Events.Handlers.Player.Spawned += OnSpawned;
-            Exiled.Events.Handlers.Scp330.InteractingScp330 += OnInteractingScp330;
             Exiled.Events.Handlers.Player.Hurting += OnHurting;
             Exiled.Events.Handlers.Player.SearchingPickup += OnSearchingPickup;
-            Exiled.Events.Handlers.Player.InteractingDoor += OnInteractingDoor;
+            // Exiled.Events.Handlers.Player.InteractingDoor += OnInteractingDoor;
+
+            Exiled.Events.Handlers.Scp330.InteractingScp330 += OnInteractingScp330;
 
             if (UnityEngine.Random.Range(1, 5) == 1)
                 Config.IsLovelyArloEnabled = true;
@@ -53,12 +59,16 @@ namespace DAONPowerOutage
         { 
             Exiled.Events.Handlers.Server.WaitingForPlayers -= OnWaitingForPlayers;
             Exiled.Events.Handlers.Server.RoundStarted -= OnRoundStarted;
+            Exiled.Events.Handlers.Server.RespawningTeam -= OnRespawningTeam;
+
+            Exiled.Events.Handlers.Cassie.SendingCassieMessage -= OnSendingCassieMessage;
 
             Exiled.Events.Handlers.Player.Spawned -= OnSpawned;
-            Exiled.Events.Handlers.Scp330.InteractingScp330 -= OnInteractingScp330;
             Exiled.Events.Handlers.Player.Hurting -= OnHurting;
             Exiled.Events.Handlers.Player.SearchingPickup -= OnSearchingPickup;
-            Exiled.Events.Handlers.Player.InteractingDoor -= OnInteractingDoor;
+            // Exiled.Events.Handlers.Player.InteractingDoor -= OnInteractingDoor;
+
+            Exiled.Events.Handlers.Scp330.InteractingScp330 -= OnInteractingScp330;
 
             base.OnEnabled();
             Instance = null;
@@ -80,8 +90,6 @@ namespace DAONPowerOutage
 
             else
                 Server.ExecuteCommand("/mp load PO");
-
-            Map.ChangeLightsColor(Color.HSVToRGB(0.1f, 0.1f, 0.1f));
         }
 
         public async void OnRoundStarted()
@@ -113,6 +121,8 @@ namespace DAONPowerOutage
                 Timing.RunCoroutine(DJ());
                 Timing.RunCoroutine(LastOne());
             }
+            Timing.RunCoroutine(Blackout());
+            Timing.RunCoroutine(LastScpBlackout());
             Timing.RunCoroutine(GSounds());
             Timing.RunCoroutine(AutoTesla());
             Timing.RunCoroutine(CustomRoomColor());
@@ -142,18 +152,34 @@ namespace DAONPowerOutage
             }
         }
 
+        public void OnSendingCassieMessage(Exiled.Events.EventArgs.Cassie.SendingCassieMessageEventArgs ev)
+        {
+            if (ev.Words.Contains("SCP") && !BlockBlackout)
+                Map.TurnOffAllLights(180);
+        }
+
+        public void OnRespawningTeam(Exiled.Events.EventArgs.Server.RespawningTeamEventArgs ev)
+        {
+            Timing.CallDelayed(120f, () => { Map.TurnOffAllLights(180); });
+        }
+
         public async void OnSpawned(Exiled.Events.EventArgs.Player.SpawnedEventArgs ev)
         {
-            ev.Player.EnableEffect(Exiled.API.Enums.EffectType.FogControl, 7);
-            ev.Player.EnableEffect(Exiled.API.Enums.EffectType.Scanned);
-            await Task.Delay(7000);
-            ev.Player.DisableEffect(Exiled.API.Enums.EffectType.Scanned);
-
             if (ev.Reason == Exiled.API.Enums.SpawnReason.RoundStart && ev.Player.IsScp)
             {
                 if (UnityEngine.Random.Range(1, 8) == 1)
                     ev.Player.Role.Set(RoleTypeId.Scp3114);
             }
+
+            if (UnityEngine.Random.Range(1, 9) != 1)
+                ev.Player.AddItem(ItemType.Flashlight);
+            else
+                ev.Player.AddItem(ItemType.Lantern);
+
+            // ev.Player.EnableEffect(Exiled.API.Enums.EffectType.FogControl, 7);
+            ev.Player.EnableEffect(Exiled.API.Enums.EffectType.Scanned);
+            await Task.Delay(7000);
+            ev.Player.DisableEffect(Exiled.API.Enums.EffectType.Scanned);
         }
 
         public void OnInteractingScp330(Exiled.Events.EventArgs.Scp330.InteractingScp330EventArgs ev)
@@ -191,6 +217,37 @@ namespace DAONPowerOutage
         }
 
         // -------------------------------------------------------------------------------------------------- // [IEnumerator]
+
+        public IEnumerator<float> Blackout()
+        {
+            yield return Timing.WaitForSeconds(180f);
+
+            BlockBlackout = false;
+
+            while (true)
+            {
+                if (Player.List.Where(x => !x.IsScp && x.IsAlive).Count() >= 10)
+                    Map.TurnOffAllLights(90f);
+
+                yield return Timing.WaitForSeconds(180f);
+            }
+        }
+
+        public IEnumerator<float> LastScpBlackout()
+        {
+            yield return Timing.WaitForSeconds(1f);
+
+            GameObject Prefab = PrefabHelper.Spawn(Exiled.API.Enums.PrefabType.RegularKeycardPickup, new Vector3(1, 1, 1));
+            Prefab.GetComponent<DoorObject>().Scale = new
+
+            while (true)
+            {
+                if (!BlockBlackout && Player.List.Where(x => x.IsScp && x.IsAlive).Count() == 1)
+                    Map.TurnOffAllLights(99999f);
+
+                yield return Timing.WaitForSeconds(1f);
+            }
+        }
 
         public IEnumerator<float> GSounds()
         {
@@ -231,7 +288,7 @@ namespace DAONPowerOutage
                 crs.ForEach(x => x.Color = new Color(UnityEngine.Random.Range(0.1f, 25f), UnityEngine.Random.Range(0.1f, 25f), UnityEngine.Random.Range(0.1f, 25f)));
                 yield return Timing.WaitForSeconds(5);
 
-                crs.ForEach(x => x.Color = new Color(0.1f, 0.1f, 0.1f));
+                crs.ForEach(x => x.Color = new Color(1f, 1f, 1f));
                 yield return Timing.WaitForSeconds(1f);
             }
         }
