@@ -44,8 +44,6 @@ namespace DAONPowerOutage
             Exiled.Events.Handlers.Player.SearchingPickup += OnSearchingPickup;
             // Exiled.Events.Handlers.Player.InteractingDoor += OnInteractingDoor;
 
-            Exiled.Events.Handlers.Scp330.InteractingScp330 += OnInteractingScp330;
-
             if (UnityEngine.Random.Range(1, 5) == 1)
                 Config.IsLovelyArloEnabled = true;
 
@@ -67,8 +65,6 @@ namespace DAONPowerOutage
             Exiled.Events.Handlers.Player.Hurting -= OnHurting;
             Exiled.Events.Handlers.Player.SearchingPickup -= OnSearchingPickup;
             // Exiled.Events.Handlers.Player.InteractingDoor -= OnInteractingDoor;
-
-            Exiled.Events.Handlers.Scp330.InteractingScp330 -= OnInteractingScp330;
 
             base.OnEnabled();
             Instance = null;
@@ -165,12 +161,6 @@ namespace DAONPowerOutage
 
         public async void OnSpawned(Exiled.Events.EventArgs.Player.SpawnedEventArgs ev)
         {
-            if (ev.Reason == Exiled.API.Enums.SpawnReason.RoundStart && ev.Player.IsScp)
-            {
-                if (UnityEngine.Random.Range(1, 8) == 1)
-                    ev.Player.Role.Set(RoleTypeId.Scp3114);
-            }
-
             if (UnityEngine.Random.Range(1, 9) != 1)
                 ev.Player.AddItem(ItemType.Flashlight);
             else
@@ -180,15 +170,6 @@ namespace DAONPowerOutage
             ev.Player.EnableEffect(Exiled.API.Enums.EffectType.Scanned);
             await Task.Delay(7000);
             ev.Player.DisableEffect(Exiled.API.Enums.EffectType.Scanned);
-        }
-
-        public void OnInteractingScp330(Exiled.Events.EventArgs.Scp330.InteractingScp330EventArgs ev)
-        {
-            if (UnityEngine.Random.Range(1, 7) == 1)
-            {
-                ev.IsAllowed = false;
-                ev.Player.TryAddCandy(InventorySystem.Items.Usables.Scp330.CandyKindID.Pink);
-            }
         }
 
         public async void OnInteractingDoor(Exiled.Events.EventArgs.Player.InteractingDoorEventArgs ev)
@@ -237,9 +218,6 @@ namespace DAONPowerOutage
         {
             yield return Timing.WaitForSeconds(1f);
 
-            GameObject Prefab = PrefabHelper.Spawn(Exiled.API.Enums.PrefabType.RegularKeycardPickup, new Vector3(1, 1, 1));
-            Prefab.GetComponent<DoorObject>().Scale = new
-
             while (true)
             {
                 if (!BlockBlackout && Player.List.Where(x => x.IsScp && x.IsAlive).Count() == 1)
@@ -278,14 +256,14 @@ namespace DAONPowerOutage
             {
                 List<Room> crs = new List<Room>();
 
-                for (int i = 0; i < 10; i++)
+                for (int i = 0; i < 5; i++)
                 {
                     int randomIndex = UnityEngine.Random.Range(0, room.Count);
                     Room randomRoom = room[randomIndex];
                     crs.Add(randomRoom);
                 }
 
-                crs.ForEach(x => x.Color = new Color(UnityEngine.Random.Range(0.1f, 25f), UnityEngine.Random.Range(0.1f, 25f), UnityEngine.Random.Range(0.1f, 25f)));
+                crs.ForEach(x => x.Color = new Color(UnityEngine.Random.Range(0.1f, 2.5f), UnityEngine.Random.Range(0.1f, 2.5f), UnityEngine.Random.Range(0.1f, 2.5f)));
                 yield return Timing.WaitForSeconds(5);
 
                 crs.ForEach(x => x.Color = new Color(1f, 1f, 1f));
